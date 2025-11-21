@@ -1,0 +1,79 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/gateway-e2e"
+    },
+    {
+      "path": "./apps/gateway"
+    },
+    {
+      "path": "./apps/leadIngest-e2e"
+    },
+    {
+      "path": "./apps/leadIngest"
+    },
+    {
+      "path": "./apps/assignment-e2e"
+    },
+    {
+      "path": "./apps/assignment"
+    },
+    {
+      "path": "./apps/worker-e2e"
+    },
+    {
+      "path": "./apps/worker"
+    },
+    {
+      "path": "./apps/payment-e2e"
+    },
+    {
+      "path": "./apps/payment"
+    },
+    {
+      "path": "./apps/commission-e2e"
+    },
+    {
+      "path": "./apps/commission"
+    },
+    {
+      "path": "./apps/notification-e2e"
+    },
+    {
+      "path": "./apps/notification"
+    },
+    {
+      "path": "./apps/analytics-e2e"
+    },
+    {
+      "path": "./apps/analytics"
+    },
+    {
+      "path": "./apps/scheduler-e2e"
+    },
+    {
+      "path": "./apps/scheduler"
+    },
+    {
+      "path": "./libs/contracts"
+    },
+    {
+      "path": "./libs/common"
+    },
+    {
+      "path": "./libs/auth"
+    },
+    {
+      "path": "./libs/kafka"
+    },
+    {
+      "path": "./libs/db"
+    },
+    {
+      "path": "./libs/feature-flags"
+    }
+  ]
+}

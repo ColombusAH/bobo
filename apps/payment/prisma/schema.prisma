@@ -1,0 +1,223 @@
+// Payment Service - Payment Processing Domain
+// Database: payment_db
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client-payment"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PAYMENT_DATABASE_URL")
+}
+
+// ============================================
+// PAYMENT METHODS
+// ============================================
+model PaymentMethod {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  userId      String   @map("user_id")
+  
+  // Method Details
+  type        PaymentMethodType
+  provider    String   // "stripe", "paypal", etc.
+  
+  // Card/Account Details (encrypted/tokenized)
+  last4       String?
+  brand       String?  // "visa", "mastercard", etc.
+  expiryMonth Int?     @map("expiry_month")
+  expiryYear  Int?     @map("expiry_year")
+  
+  // Provider References
+  providerCustomerId String? @map("provider_customer_id")
+  providerMethodId   String? @map("provider_method_id")
+  
+  // Status
+  isDefault   Boolean  @default(false) @map("is_default")
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Audit
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  transactions Transaction[]
+  
+  @@map("payment_methods")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([isDefault])
+}
+
+enum PaymentMethodType {
+  CARD
+  BANK_ACCOUNT
+  PAYPAL
+  CRYPTO
+  OTHER
+}
+
+// ============================================
+// TRANSACTIONS
+// ============================================
+model Transaction {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  userId      String   @map("user_id")
+  
+  // Transaction Details
+  amount      Float
+  currency    String   @default("USD")
+  type        TransactionType
+  description String?  @db.Text
+  
+  // Payment Method
+  paymentMethodId String? @map("payment_method_id")
+  
+  // Status
+  status      TransactionStatus @default(PENDING)
+  
+  // Provider Details
+  provider    String?
+  providerTransactionId String? @map("provider_transaction_id")
+  providerFee Float?   @map("provider_fee")
+  
+  // References
+  referenceType String? @map("reference_type") // "subscription", "invoice", "commission"
+  referenceId   String? @map("reference_id")
+  
+  // Metadata
+  metadata    Json?    @default("{}")
+  
+  // Timestamps
+  processedAt DateTime? @map("processed_at")
+  settledAt   DateTime? @map("settled_at")
+  failedAt    DateTime? @map("failed_at")
+  failureReason String? @map("failure_reason") @db.Text
+  
+  // Audit
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  refunds     Refund[]
+  
+  @@map("transactions")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+}
+
+enum TransactionType {
+  CHARGE
+  PAYOUT
+  REFUND
+  FEE
+  ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+// ============================================
+// REFUNDS
+// ============================================
+model Refund {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  transactionId String @map("transaction_id")
+  
+  // Refund Details
+  amount      Float
+  currency    String   @default("USD")
+  reason      String?  @db.Text
+  
+  // Status
+  status      RefundStatus @default(PENDING)
+  
+  // Provider Details
+  providerRefundId String? @map("provider_refund_id")
+  
+  // Audit
+  requestedBy String?  @map("requested_by")
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  
+  @@map("refunds")
+  @@index([tenantId])
+  @@index([transactionId])
+  @@index([status])
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+// ============================================
+// INVOICES
+// ============================================
+model Invoice {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  userId      String   @map("user_id")
+  
+  // Invoice Details
+  invoiceNumber String @unique @map("invoice_number")
+  amount      Float
+  currency    String   @default("USD")
+  taxAmount   Float?   @default(0) @map("tax_amount")
+  totalAmount Float    @map("total_amount")
+  
+  // Line Items
+  items       Json     @default("[]")
+  
+  // Dates
+  issueDate   DateTime @map("issue_date")
+  dueDate     DateTime @map("due_date")
+  
+  // Status
+  status      InvoiceStatus @default(DRAFT)
+  paidAt      DateTime? @map("paid_at")
+  
+  // Payment
+  transactionId String? @map("transaction_id")
+  
+  // Audit
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("invoices")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@index([invoiceNumber])
+  @@index([dueDate])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+

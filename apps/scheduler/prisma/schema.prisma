@@ -1,0 +1,157 @@
+// Scheduler Service - Job Scheduling & Cron Domain
+// Database: scheduler_db
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client-scheduler"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("SCHEDULER_DATABASE_URL")
+}
+
+// ============================================
+// SCHEDULED JOBS
+// ============================================
+model ScheduledJob {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Job Details
+  name        String
+  description String?  @db.Text
+  jobType     String   @map("job_type") // "report", "cleanup", "reminder", etc.
+  
+  // Schedule
+  schedule    String   // Cron expression
+  timezone    String   @default("UTC")
+  
+  // Execution
+  handler     String   // Function/service to execute
+  payload     Json?    @default("{}")
+  
+  // Configuration
+  retryCount  Int      @default(3) @map("retry_count")
+  timeout     Int?     // In seconds
+  priority    Int      @default(5)
+  
+  // Status
+  isActive    Boolean  @default(true) @map("is_active")
+  isPaused    Boolean  @default(false) @map("is_paused")
+  
+  // Execution History
+  lastRunAt   DateTime? @map("last_run_at")
+  lastStatus  JobStatus? @map("last_status")
+  nextRunAt   DateTime? @map("next_run_at")
+  runCount    Int      @default(0) @map("run_count")
+  
+  // Audit
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  executions  JobExecution[]
+  
+  @@map("scheduled_jobs")
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([isPaused])
+  @@index([nextRunAt])
+}
+
+// ============================================
+// JOB EXECUTIONS
+// ============================================
+model JobExecution {
+  id          String   @id @default(uuid())
+  jobId       String   @map("job_id")
+  tenantId    String   @map("tenant_id")
+  
+  // Execution Details
+  status      JobStatus @default(PENDING)
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  
+  // Duration
+  duration    Int?     // In milliseconds
+  
+  // Results
+  result      Json?    @default("{}")
+  error       String?  @db.Text
+  
+  // Retry
+  attempt     Int      @default(1)
+  maxAttempts Int      @default(3) @map("max_attempts")
+  
+  // Metadata
+  metadata    Json?    @default("{}")
+  
+  // Audit
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  job         ScheduledJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  @@map("job_executions")
+  @@index([jobId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([createdAt])
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+}
+
+// ============================================
+// ONE-TIME SCHEDULED TASKS
+// ============================================
+model ScheduledTask {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Task Details
+  name        String
+  taskType    String   @map("task_type")
+  
+  // Schedule (one-time execution)
+  scheduledFor DateTime @map("scheduled_for")
+  timezone    String   @default("UTC")
+  
+  // Execution
+  handler     String
+  payload     Json?    @default("{}")
+  
+  // Status
+  status      TaskStatus @default(PENDING)
+  executedAt  DateTime? @map("executed_at")
+  
+  // Results
+  result      Json?    @default("{}")
+  error       String?  @db.Text
+  
+  // Audit
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  @@map("scheduled_tasks")
+  @@index([tenantId])
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+enum TaskStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+

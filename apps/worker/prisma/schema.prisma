@@ -1,0 +1,200 @@
+// Worker Service - Background Job Processing Domain
+// Database: worker_db
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client-worker"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("WORKER_DATABASE_URL")
+}
+
+// ============================================
+// BACKGROUND JOBS (Queue-based)
+// ============================================
+model BackgroundJob {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Job Details
+  queue       String   // "default", "high-priority", "low-priority"
+  jobType     String   @map("job_type")
+  
+  // Execution
+  handler     String
+  payload     Json     @default("{}")
+  
+  // Priority & Scheduling
+  priority    Int      @default(5)
+  delay       Int?     // Delay in milliseconds before execution
+  scheduledFor DateTime? @map("scheduled_for")
+  
+  // Status
+  status      BackgroundJobStatus @default(PENDING)
+  
+  // Execution Tracking
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(3) @map("max_attempts")
+  
+  // Worker Assignment
+  workerId    String?  @map("worker_id")
+  lockedAt    DateTime? @map("locked_at")
+  lockTimeout DateTime? @map("lock_timeout")
+  
+  // Timestamps
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  failedAt    DateTime? @map("failed_at")
+  
+  // Results
+  result      Json?    @default("{}")
+  error       String?  @db.Text
+  
+  // Metadata
+  metadata    Json?    @default("{}")
+  
+  // Audit
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("background_jobs")
+  @@index([tenantId])
+  @@index([queue])
+  @@index([status])
+  @@index([priority])
+  @@index([scheduledFor])
+  @@index([workerId])
+  @@index([createdAt])
+}
+
+enum BackgroundJobStatus {
+  PENDING
+  LOCKED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  RETRYING
+}
+
+// ============================================
+// WORKERS (Process Tracking)
+// ============================================
+model Worker {
+  id          String   @id @default(uuid())
+  
+  // Worker Details
+  name        String
+  hostname    String?
+  pid         Int?     // Process ID
+  
+  // Status
+  status      WorkerStatus @default(IDLE)
+  
+  // Capacity
+  maxJobs     Int      @default(10) @map("max_jobs")
+  currentJobs Int      @default(0) @map("current_jobs")
+  
+  // Queues this worker handles
+  queues      String[]
+  
+  // Health
+  lastHeartbeat DateTime @default(now()) @map("last_heartbeat")
+  lastJobAt   DateTime? @map("last_job_at")
+  
+  // Stats
+  totalProcessed Int   @default(0) @map("total_processed")
+  totalFailed   Int    @default(0) @map("total_failed")
+  
+  // Audit
+  startedAt   DateTime @default(now()) @map("started_at")
+  stoppedAt   DateTime? @map("stopped_at")
+  
+  @@map("workers")
+  @@index([status])
+  @@index([lastHeartbeat])
+}
+
+enum WorkerStatus {
+  IDLE
+  BUSY
+  STOPPED
+  ERROR
+}
+
+// ============================================
+// JOB LOGS
+// ============================================
+model JobLog {
+  id          String   @id @default(uuid())
+  jobId       String   @map("job_id")
+  workerId    String?  @map("worker_id")
+  
+  // Log Details
+  level       LogLevel
+  message     String   @db.Text
+  context     Json?    @default("{}")
+  
+  // Timestamp
+  timestamp   DateTime @default(now())
+  
+  @@map("job_logs")
+  @@index([jobId])
+  @@index([workerId])
+  @@index([level])
+  @@index([timestamp])
+}
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+  FATAL
+}
+
+// ============================================
+// DEAD LETTER QUEUE
+// ============================================
+model DeadLetterJob {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Original Job Data
+  originalJobId String @map("original_job_id")
+  queue       String
+  jobType     String   @map("job_type")
+  handler     String
+  payload     Json     @default("{}")
+  
+  // Failure Details
+  attempts    Int
+  lastError   String   @db.Text @map("last_error")
+  errorStack  String?  @db.Text @map("error_stack")
+  
+  // Status
+  status      DeadLetterStatus @default(DEAD)
+  retried     Boolean  @default(false)
+  retriedAt   DateTime? @map("retried_at")
+  
+  // Timestamps
+  failedAt    DateTime @map("failed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  @@map("dead_letter_jobs")
+  @@index([tenantId])
+  @@index([status])
+  @@index([originalJobId])
+  @@index([failedAt])
+}
+
+enum DeadLetterStatus {
+  DEAD
+  INVESTIGATING
+  RETRIED
+  DISCARDED
+}
+

@@ -1,0 +1,107 @@
+// Lead Ingest Service - Lead Management Domain
+// Database: lead_ingest_db
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client-lead-ingest"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("LEAD_INGEST_DATABASE_URL")
+}
+
+// ============================================
+// LEADS
+// ============================================
+model Lead {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Lead Information
+  firstName   String   @map("first_name")
+  lastName    String?  @map("last_name")
+  email       String
+  phone       String?
+  company     String?
+  
+  // Source & Campaign
+  source      String?  // e.g., "web_form", "api", "import"
+  campaign    String?
+  medium      String?
+  
+  // Lead Data
+  metadata    Json?    @default("{}")
+  customFields Json?   @default("{}") @map("custom_fields")
+  
+  // Status
+  status      LeadStatus @default(NEW)
+  score       Int?     @default(0)
+  
+  // Assignment
+  assignedTo  String?  @map("assigned_to")
+  assignedAt  DateTime? @map("assigned_at")
+  
+  // Audit
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  activities  LeadActivity[]
+  
+  @@map("leads")
+  @@index([tenantId])
+  @@index([email])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([createdAt])
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  UNQUALIFIED
+  LOST
+}
+
+// ============================================
+// LEAD ACTIVITIES
+// ============================================
+model LeadActivity {
+  id          String   @id @default(uuid())
+  leadId      String   @map("lead_id")
+  tenantId    String   @map("tenant_id")
+  
+  // Activity Details
+  type        ActivityType
+  description String?  @db.Text
+  metadata    Json?    @default("{}")
+  
+  // Tracking
+  performedBy String?  @map("performed_by") // userId
+  occurredAt  DateTime @default(now()) @map("occurred_at")
+  
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  @@map("lead_activities")
+  @@index([leadId])
+  @@index([tenantId])
+  @@index([occurredAt])
+}
+
+enum ActivityType {
+  CREATED
+  CONTACTED
+  EMAIL_SENT
+  EMAIL_OPENED
+  CALL_MADE
+  MEETING_SCHEDULED
+  NOTE_ADDED
+  STATUS_CHANGED
+  ASSIGNED
+  CONVERTED
+}
+

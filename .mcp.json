@@ -1,0 +1,129 @@
+{
+  "$schema": "https://spec.modelcontextprotocol.io/2024-11-05/schema.json",
+  "name": "bobo-monorepo-context",
+  "version": "1.0.0",
+  "description": "Context configuration for the Bobo Nx monorepo with NestJS, React, Kafka, and Prisma",
+  "orchestration": {
+    "framework": "nx",
+    "technologies": [
+      "nestjs",
+      "react",
+      "typescript",
+      "kafka",
+      "prisma",
+      "postgresql"
+    ],
+    "patterns": [
+      "microservices",
+      "event-driven",
+      "monorepo"
+    ]
+  },
+  "context_modules": {
+    "base_path": "./context_modules",
+    "version": "v1",
+    "categories": {
+      "examples": {
+        "path": "./context_modules/examples/v1",
+        "description": "Technology-specific implementation examples and best practices",
+        "modules": [
+          "nestjs_kafka_integration.md",
+          "prisma_schema_patterns.md",
+          "react_component_architecture.md",
+          "nx_workspaces.md"
+        ]
+      },
+      "personas": {
+        "path": "./context_modules/personas/v1",
+        "description": "Role-specific development guidelines and expertise areas",
+        "modules": [
+          "senior_full_stack_developer.md",
+          "prisma_orm_specialist.md"
+        ]
+      },
+      "principles": {
+        "path": "./context_modules/principles/v1",
+        "description": "Architectural and design principles",
+        "modules": [
+          "microservices_with_kafka.md",
+          "zero_trust_security_model.md"
+        ]
+      },
+      "rules": {
+        "path": "./context_modules/rules/v1",
+        "description": "Enforceable rules and constraints",
+        "modules": [
+          "prevent_sql_injection.md",
+          "typescript_strict_mode.md"
+        ]
+      }
+    }
+  },
+  "workspace_structure": {
+    "apps": {
+      "backend": {
+        "type": "nestjs",
+        "description": "Backend microservices with Kafka integration",
+        "port_range": "3000-3099"
+      },
+      "frontend": {
+        "type": "react",
+        "description": "Frontend applications",
+        "port_range": "4000-4099"
+      }
+    },
+    "libs": {
+      "shared": {
+        "description": "Cross-cutting utilities and shared code"
+      },
+      "kafka-events": {
+        "description": "Domain-specific Kafka event definitions and schemas"
+      }
+    }
+  },
+  "development": {
+    "typescript": {
+      "strict_mode": true,
+      "target": "ES2022",
+      "module": "commonjs"
+    },
+    "linting": {
+      "eslint": true,
+      "prettier": true,
+      "pre_commit_hooks": true
+    },
+    "testing": {
+      "unit": "jest",
+      "e2e": "jest",
+      "coverage_threshold": 80
+    }
+  },
+  "infrastructure": {
+    "kafka": {
+      "broker": "localhost:9092",
+      "topics_prefix": "bobo",
+      "consumer_groups_prefix": "bobo"
+    },
+    "database": {
+      "orm": "prisma",
+      "type": "postgresql",
+      "migrations": "automatic"
+    }
+  },
+  "versioning": {
+    "strategy": "semantic",
+    "context_modules": {
+      "current": "v1",
+      "description": "Use v1/ subdirectories for stable modules. Create v2/ for breaking changes."
+    }
+  },
+  "references": {
+    "constitution": "./constitution.md",
+    "contributing": "./CONTRIBUTING.md",
+    "nx_docs": "https://nx.dev",
+    "nestjs_docs": "https://docs.nestjs.com",
+    "kafka_docs": "https://kafka.apache.org/documentation",
+    "prisma_docs": "https://www.prisma.io/docs"
+  }
+}
+

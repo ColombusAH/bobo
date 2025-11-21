@@ -1,0 +1,296 @@
+services:
+  # ---------------------------------------------------------
+  # PostgreSQL
+  # ---------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: leads_saas
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # ---------------------------------------------------------
+  # pgAdmin 4
+  # ---------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  # ---------------------------------------------------------
+  # Redis
+  # ---------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # ---------------------------------------------------------
+  # Redpanda (Kafka-compatible broker)
+  # ---------------------------------------------------------
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - "0.0.0.0:9092"
+      - --advertise-kafka-addr
+      - "redpanda:9092"
+      - --pandaproxy-addr
+      - "0.0.0.0:8082"
+      - --advertise-pandaproxy-addr
+      - "redpanda:8082"
+    ports:
+      - "9092:9092"
+      - "8082:8082"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+
+  # ---------------------------------------------------------
+  # Kafka UI console
+  # ---------------------------------------------------------
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    depends_on:
+      - redpanda
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: redpanda:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: ""      # No ZK needed for Redpanda
+    ports:
+      - "8080:8080"
+
+  # =========================================================
+  # === MICROSERVICES =======================================
+  # =========================================================
+
+  # ---------------------------------------------------------
+  # API Gateway
+  # ---------------------------------------------------------
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: apps/gateway/Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - redpanda
+    environment:
+      PORT: 3000
+      NODE_ENV: development
+      DATABASE_URL: postgres://app:app@postgres:5432/leads_saas
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+      JWT_SECRET: super-secret-jwt
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: super-secret-refresh
+      JWT_REFRESH_EXPIRES_IN: 7d
+    ports:
+      - "3000:3000"
+
+  # ---------------------------------------------------------
+  # Lead Ingest
+  # ---------------------------------------------------------
+  svc-lead-ingest:
+    build:
+      context: ..
+      dockerfile: apps/leadIngest/Dockerfile
+    container_name: svc-lead-ingest
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redpanda
+    environment:
+      SERVICE_NAME: svc-lead-ingest
+      NODE_ENV: development
+      DATABASE_URL: postgres://app:app@postgres:5432/leads_saas
+      KAFKA_BROKERS: redpanda:9092
+      REDIS_URL: redis://redis:6379
+
+  # ---------------------------------------------------------
+  # Assignment Service
+  # ---------------------------------------------------------
+  svc-assignment:
+    build:
+      context: ..
+      dockerfile: apps/assignment/Dockerfile
+    container_name: svc-assignment
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redpanda
+    environment:
+      SERVICE_NAME: svc-assignment
+      NODE_ENV: development
+      DATABASE_URL: postgres://app:app@postgres:5432/leads_saas
+      KAFKA_BROKERS: redpanda:9092
+      REDIS_URL: redis://redis:6379
+
+  # ---------------------------------------------------------
+  # Worker Service
+  # ---------------------------------------------------------
+  svc-worker:
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    container_name: svc-worker
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redpanda
+    environment:
+      SERVICE_NAME: svc-worker
+      NODE_ENV: development
+      DATABASE_URL: postgres://app:app@postgres:5432/leads_saas
+      KAFKA_BROKERS: redpanda:9092
+      REDIS_URL: redis://redis:6379
+
+  # ---------------------------------------------------------
+  # Payment Service
+  # ---------------------------------------------------------
+  svc-payment:
+    build:
+      context: ..
+      dockerfile: apps/payment/Dockerfile
+    container_name: svc-payment
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redpanda
+    environment:
+      SERVICE_NAME: svc-payment
+      NODE_ENV: development
+      DATABASE_URL: postgres://app:app@postgres:5432/leads_saas
+      KAFKA_BROKERS: redpanda:9092
+      REDIS_URL: redis://redis:6379
+      STRIPE_SECRET_KEY: sk_test_xxx
+      STRIPE_WEBHOOK_SECRET: whsec_xxx
+
+  # ---------------------------------------------------------
+  # Commission Service
+  # ---------------------------------------------------------
+  svc-commission:
+    build:
+      context: ..
+      dockerfile: apps/commission/Dockerfile
+    container_name: svc-commission
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redpanda
+    environment:
+      SERVICE_NAME: svc-commission
+      NODE_ENV: development
+      DATABASE_URL: postgres://app:app@postgres:5432/leads_saas
+      KAFKA_BROKERS: redpanda:9092
+      REDIS_URL: redis://redis:6379
+
+  # ---------------------------------------------------------
+  # Notification Service
+  # ---------------------------------------------------------
+  svc-notification:
+    build:
+      context: ..
+      dockerfile: apps/notification/Dockerfile
+    container_name: svc-notification
+    restart: unless-stopped
+    depends_on:
+      - redpanda
+      - redis
+    environment:
+      SERVICE_NAME: svc-notification
+      NODE_ENV: development
+      KAFKA_BROKERS: redpanda:9092
+      REDIS_URL: redis://redis:6379
+      SMS_PROVIDER_API_KEY: your-sms-key
+      EMAIL_PROVIDER_API_KEY: your-email-key
+      FCM_SERVICE_ACCOUNT_JSON: /secrets/fcm.json
+    volumes:
+      - ./secrets/fcm.json:/secrets/fcm.json:ro
+
+  # ---------------------------------------------------------
+  # Analytics Service
+  # ---------------------------------------------------------
+  svc-analytics:
+    build:
+      context: ..
+      dockerfile: apps/analytics/Dockerfile
+    container_name: svc-analytics
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redpanda
+    environment:
+      SERVICE_NAME: svc-analytics
+      NODE_ENV: development
+      DATABASE_URL: postgres://app:app@postgres:5432/leads_saas
+      KAFKA_BROKERS: redpanda:9092
+      REDIS_URL: redis://redis:6379
+
+  # ---------------------------------------------------------
+  # Scheduler / Timer Service
+  # ---------------------------------------------------------
+  svc-scheduler:
+    build:
+      context: ..
+      dockerfile: apps/scheduler/Dockerfile
+    container_name: svc-scheduler
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redpanda
+      - redis
+    environment:
+      SERVICE_NAME: svc-scheduler
+      NODE_ENV: development
+      DATABASE_URL: postgres://app:app@postgres:5432/leads_saas
+      KAFKA_BROKERS: redpanda:9092
+      REDIS_URL: redis://redis:6379
+      SCHEDULER_TICK_MS: 1000
+
+# ---------------------------------------------------------
+# VOLUMES
+# ---------------------------------------------------------
+volumes:
+  postgres_data:
+  pgadmin_data:
+  redis_data:
+  redpanda_data:

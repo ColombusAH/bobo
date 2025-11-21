@@ -1,0 +1,168 @@
+// Analytics Service - Analytics & Reporting Domain
+// Database: analytics_db
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client-analytics"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("ANALYTICS_DATABASE_URL")
+}
+
+// ============================================
+// EVENTS
+// ============================================
+model Event {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Event Details
+  name        String   // e.g., "lead_created", "payment_completed"
+  category    String?  // e.g., "lead", "payment", "user"
+  action      String?  // e.g., "create", "update", "delete"
+  
+  // Context
+  userId      String?  @map("user_id")
+  sessionId   String?  @map("session_id")
+  
+  // Entity Reference
+  entityType  String?  @map("entity_type")
+  entityId    String?  @map("entity_id")
+  
+  // Event Data
+  properties  Json?    @default("{}")
+  
+  // Tracking
+  source      String?  // "web", "mobile", "api"
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  
+  // Timestamps
+  occurredAt  DateTime @default(now()) @map("occurred_at")
+  
+  @@map("events")
+  @@index([tenantId])
+  @@index([name])
+  @@index([userId])
+  @@index([occurredAt])
+  @@index([entityType, entityId])
+}
+
+// ============================================
+// METRICS (Aggregated Data)
+// ============================================
+model Metric {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Metric Details
+  name        String
+  category    String   // "revenue", "leads", "users", etc.
+  value       Float
+  unit        String?  // "count", "currency", "percentage"
+  
+  // Dimensions
+  dimensions  Json?    @default("{}") // e.g., { "region": "US", "plan": "PRO" }
+  
+  // Time Period
+  period      MetricPeriod
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  
+  // Audit
+  calculatedAt DateTime @default(now()) @map("calculated_at")
+  
+  @@unique([tenantId, name, period, periodStart])
+  @@map("metrics")
+  @@index([tenantId])
+  @@index([name])
+  @@index([category])
+  @@index([periodStart, periodEnd])
+}
+
+enum MetricPeriod {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+// ============================================
+// DASHBOARDS
+// ============================================
+model Dashboard {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Dashboard Details
+  name        String
+  description String?  @db.Text
+  layout      Json     @default("[]") // Widget configuration
+  
+  // Access
+  isPublic    Boolean  @default(false) @map("is_public")
+  ownerId     String   @map("owner_id")
+  sharedWith  String[] @map("shared_with") // Array of user IDs
+  
+  // Status
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Audit
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("dashboards")
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([isPublic])
+}
+
+// ============================================
+// REPORTS
+// ============================================
+model Report {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Report Details
+  name        String
+  description String?  @db.Text
+  type        ReportType
+  
+  // Configuration
+  config      Json     @default("{}") // Queries, filters, etc.
+  schedule    String?  // Cron expression for scheduled reports
+  
+  // Status
+  isActive    Boolean  @default(true) @map("is_active")
+  lastRunAt   DateTime? @map("last_run_at")
+  nextRunAt   DateTime? @map("next_run_at")
+  
+  // Recipients
+  recipients  String[] // Email addresses or user IDs
+  
+  // Audit
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("reports")
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+  @@index([nextRunAt])
+}
+
+enum ReportType {
+  SALES
+  LEADS
+  REVENUE
+  COMMISSION
+  PERFORMANCE
+  CUSTOM
+}
+

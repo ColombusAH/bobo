@@ -1,0 +1,137 @@
+// Assignment Service - Lead/Task Assignment & Routing Domain
+// Database: assignment_db
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client-assignment"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("ASSIGNMENT_DATABASE_URL")
+}
+
+// ============================================
+// ASSIGNMENT RULES
+// ============================================
+model AssignmentRule {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Rule Details
+  name        String
+  description String?  @db.Text
+  priority    Int      @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Conditions (JSON-based rule engine)
+  conditions  Json     // e.g., { "source": "web", "score": { "gte": 50 } }
+  
+  // Assignment Strategy
+  strategy    AssignmentStrategy @default(ROUND_ROBIN)
+  
+  // Target Users/Teams
+  assignees   String[] // Array of user IDs
+  
+  // Audit
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  assignments Assignment[]
+  
+  @@map("assignment_rules")
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([priority])
+}
+
+enum AssignmentStrategy {
+  ROUND_ROBIN
+  LOAD_BALANCED
+  SKILL_BASED
+  GEOGRAPHIC
+  MANUAL
+}
+
+// ============================================
+// ASSIGNMENTS
+// ============================================
+model Assignment {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  ruleId      String?  @map("rule_id")
+  
+  // Entity Being Assigned
+  entityType  EntityType @map("entity_type")
+  entityId    String   @map("entity_id")
+  
+  // Assignment Details
+  assignedTo  String   @map("assigned_to") // userId
+  assignedBy  String?  @map("assigned_by") // userId or "system"
+  
+  // Status
+  status      AssignmentStatus @default(ACTIVE)
+  acceptedAt  DateTime? @map("accepted_at")
+  completedAt DateTime? @map("completed_at")
+  
+  // Metadata
+  metadata    Json?    @default("{}")
+  
+  // Audit
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  rule        AssignmentRule? @relation(fields: [ruleId], references: [id])
+  
+  @@map("assignments")
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum EntityType {
+  LEAD
+  TASK
+  TICKET
+  OPPORTUNITY
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  ACCEPTED
+  REJECTED
+  REASSIGNED
+  COMPLETED
+  CANCELLED
+}
+
+// ============================================
+// WORKLOAD TRACKING
+// ============================================
+model WorkloadMetric {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  userId      String   @map("user_id")
+  
+  // Metrics
+  activeCount Int      @default(0) @map("active_count")
+  totalCount  Int      @default(0) @map("total_count")
+  avgResponseTime Int? @map("avg_response_time") // in seconds
+  
+  // Period
+  date        DateTime @db.Date
+  
+  // Audit
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@unique([tenantId, userId, date])
+  @@map("workload_metrics")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([date])
+}
+

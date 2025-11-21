@@ -1,0 +1,192 @@
+// Notification Service - Notification & Messaging Domain
+// Database: notification_db
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client-notification"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("NOTIFICATION_DATABASE_URL")
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+model Notification {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Recipient
+  userId      String   @map("user_id")
+  userEmail   String?  @map("user_email") // Denormalized for quick lookup
+  
+  // Notification Details
+  type        NotificationType
+  channel     NotificationChannel
+  title       String
+  message     String   @db.Text
+  
+  // Links & Actions
+  actionUrl   String?  @map("action_url")
+  actionLabel String?  @map("action_label")
+  
+  // Related Entity
+  entityType  String?  @map("entity_type")
+  entityId    String?  @map("entity_id")
+  
+  // Status
+  status      NotificationStatus @default(PENDING)
+  readAt      DateTime? @map("read_at")
+  sentAt      DateTime? @map("sent_at")
+  deliveredAt DateTime? @map("delivered_at")
+  failedAt    DateTime? @map("failed_at")
+  failureReason String? @map("failure_reason") @db.Text
+  
+  // Priority
+  priority    NotificationPriority @default(NORMAL)
+  expiresAt   DateTime? @map("expires_at")
+  
+  // Metadata
+  metadata    Json?    @default("{}")
+  
+  // Audit
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("notifications")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([channel])
+  @@index([createdAt])
+  @@index([readAt])
+}
+
+enum NotificationType {
+  SYSTEM
+  LEAD_ASSIGNED
+  LEAD_UPDATED
+  PAYMENT_RECEIVED
+  COMMISSION_CALCULATED
+  TASK_ASSIGNED
+  MESSAGE_RECEIVED
+  ALERT
+  REMINDER
+  MARKETING
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+  WEBHOOK
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  CANCELLED
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// ============================================
+// NOTIFICATION TEMPLATES
+// ============================================
+model NotificationTemplate {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Template Details
+  name        String
+  type        NotificationType
+  channel     NotificationChannel
+  
+  // Content (supports template variables)
+  subject     String?  // For email
+  body        String   @db.Text
+  
+  // Template Variables
+  variables   String[] // e.g., ["firstName", "leadName", "amount"]
+  
+  // Status
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Audit
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@unique([tenantId, name, type, channel])
+  @@map("notification_templates")
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+}
+
+// ============================================
+// NOTIFICATION PREFERENCES
+// ============================================
+model NotificationPreference {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  userId      String   @map("user_id")
+  
+  // Preferences by Type & Channel
+  type        NotificationType
+  channel     NotificationChannel
+  isEnabled   Boolean  @default(true) @map("is_enabled")
+  
+  // Schedule (e.g., "Do not disturb" hours)
+  schedule    Json?    @default("{}")
+  
+  // Audit
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@unique([tenantId, userId, type, channel])
+  @@map("notification_preferences")
+  @@index([tenantId])
+  @@index([userId])
+}
+
+// ============================================
+// PUSH SUBSCRIPTIONS (for Web Push)
+// ============================================
+model PushSubscription {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  userId      String   @map("user_id")
+  
+  // Subscription Details (encrypted)
+  endpoint    String   @unique @db.Text
+  keys        Json     // p256dh and auth keys
+  
+  // Device Info
+  deviceType  String?  @map("device_type") // "desktop", "mobile"
+  userAgent   String?  @map("user_agent") @db.Text
+  
+  // Status
+  isActive    Boolean  @default(true) @map("is_active")
+  lastUsedAt  DateTime @default(now()) @map("last_used_at")
+  
+  // Audit
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  @@map("push_subscriptions")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([isActive])
+}
+

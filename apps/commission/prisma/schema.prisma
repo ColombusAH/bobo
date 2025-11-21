@@ -1,0 +1,193 @@
+// Commission Service - Commission Calculation & Payout Domain
+// Database: commission_db
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client-commission"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("COMMISSION_DATABASE_URL")
+}
+
+// ============================================
+// COMMISSION PLANS
+// ============================================
+model CommissionPlan {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Plan Details
+  name        String
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Commission Structure
+  type        CommissionType
+  rate        Float    // Percentage or flat amount
+  threshold   Float?   // Minimum amount to earn commission
+  cap         Float?   // Maximum commission per period
+  
+  // Rules (JSON-based calculation engine)
+  rules       Json?    @default("{}")
+  
+  // Validity
+  startDate   DateTime @map("start_date")
+  endDate     DateTime? @map("end_date")
+  
+  // Audit
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  assignments CommissionAssignment[]
+  calculations CommissionCalculation[]
+  
+  @@map("commission_plans")
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([startDate, endDate])
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FLAT_FEE
+  TIERED
+  SPLIT
+  CUSTOM
+}
+
+// ============================================
+// COMMISSION ASSIGNMENTS
+// ============================================
+model CommissionAssignment {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  planId      String   @map("plan_id")
+  
+  // Assignee
+  userId      String   @map("user_id")
+  userEmail   String?  @map("user_email") // Denormalized
+  
+  // Split (for team commissions)
+  splitPercent Float?  @default(100) @map("split_percent")
+  
+  // Status
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Audit
+  assignedBy  String?  @map("assigned_by")
+  assignedAt  DateTime @default(now()) @map("assigned_at")
+  
+  plan        CommissionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  
+  @@map("commission_assignments")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([planId])
+  @@index([isActive])
+}
+
+// ============================================
+// COMMISSION CALCULATIONS
+// ============================================
+model CommissionCalculation {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  planId      String   @map("plan_id")
+  userId      String   @map("user_id")
+  
+  // Transaction Reference
+  transactionId   String @map("transaction_id")
+  transactionType String @map("transaction_type") // "sale", "lead", "renewal"
+  transactionAmount Float @map("transaction_amount")
+  
+  // Commission Amount
+  commissionAmount Float @map("commission_amount")
+  currency    String   @default("USD")
+  
+  // Period
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  
+  // Status
+  status      CommissionStatus @default(PENDING)
+  paidAt      DateTime? @map("paid_at")
+  paidBy      String?  @map("paid_by")
+  
+  // Metadata
+  metadata    Json?    @default("{}")
+  notes       String?  @db.Text
+  
+  // Audit
+  calculatedAt DateTime @default(now()) @map("calculated_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  plan        CommissionPlan @relation(fields: [planId], references: [id])
+  
+  @@map("commission_calculations")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+  @@index([periodStart, periodEnd])
+  @@index([transactionId])
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  DISPUTED
+  CANCELLED
+}
+
+// ============================================
+// PAYOUTS
+// ============================================
+model Payout {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  userId      String   @map("user_id")
+  
+  // Payout Details
+  amount      Float
+  currency    String   @default("USD")
+  
+  // Period
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  
+  // Commission IDs included in this payout
+  commissionIds String[] @map("commission_ids")
+  
+  // Status
+  status      PayoutStatus @default(PENDING)
+  processedAt DateTime? @map("processed_at")
+  
+  // Payment Details
+  paymentMethod String? @map("payment_method")
+  paymentReference String? @map("payment_reference")
+  
+  // Audit
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("payouts")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@index([periodStart, periodEnd])
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
