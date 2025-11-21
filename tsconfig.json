@@ -74,6 +74,9 @@
     },
     {
       "path": "./libs/feature-flags"
+    },
+    {
+      "path": "./apps/web"
     }
   ]
 }

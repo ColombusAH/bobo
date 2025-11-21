@@ -13,11 +13,7 @@
       "prisma",
       "postgresql"
     ],
-    "patterns": [
-      "microservices",
-      "event-driven",
-      "monorepo"
-    ]
+    "patterns": ["microservices", "event-driven", "monorepo"]
   },
   "context_modules": {
     "base_path": "./context_modules",
@@ -52,10 +48,7 @@
       "rules": {
         "path": "./context_modules/rules/v1",
         "description": "Enforceable rules and constraints",
-        "modules": [
-          "prevent_sql_injection.md",
-          "typescript_strict_mode.md"
-        ]
+        "modules": ["prevent_sql_injection.md", "typescript_strict_mode.md"]
       }
     }
   },
@@ -124,6 +117,12 @@
     "nestjs_docs": "https://docs.nestjs.com",
     "kafka_docs": "https://kafka.apache.org/documentation",
     "prisma_docs": "https://www.prisma.io/docs"
+  },
+  "mcpServers": {
+    "nx-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["nx", "mcp"]
+    }
   }
 }
-
