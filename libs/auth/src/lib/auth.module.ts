@@ -20,7 +20,7 @@ import { PermissionsGuard } from './guards/permissions.guard';
 
 @Module({})
 export class AuthModule {
-  static forRoot(prismaService: any): DynamicModule {
+  static forRoot(prismaServiceClass: any): DynamicModule {
     return {
       module: AuthModule,
       imports: [
@@ -53,7 +53,7 @@ export class AuthModule {
       providers: [
         {
           provide: PRISMA_SERVICE,
-          useValue: prismaService,
+          useExisting: prismaServiceClass,
         },
         // Services
         AuthService,

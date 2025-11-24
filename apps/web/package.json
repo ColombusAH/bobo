@@ -1,5 +1,8 @@
 {
   "name": "@org/web",
   "version": "0.0.1",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "@prisma/client": "^7.0.0"
+  }
 }

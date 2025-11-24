@@ -69,6 +69,7 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshToken(@Body() dto: RefreshTokenDto): Promise<LoginResponse> {
+    console.log('Refreshing token:', dto);
     return this.authService.refreshToken(dto);
   }
 
