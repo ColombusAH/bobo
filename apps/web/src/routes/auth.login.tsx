@@ -3,16 +3,22 @@ import { useState, FormEvent } from 'react';
 import { useLogin } from '../hooks';
 
 export const Route = createFileRoute('/auth/login')({
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      redirect: (search.redirect as string) || '/',
+    };
+  },
   component: LoginPage,
 });
 
 function LoginPage() {
+  const { redirect } = Route.useSearch();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  const loginMutation = useLogin();
+  const loginMutation = useLogin(redirect);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

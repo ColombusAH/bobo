@@ -15,6 +15,7 @@ import { Route as ProtectedIndexRouteImport } from './routes/_protected.index'
 import { Route as AuthRegisterRouteImport } from './routes/auth.register'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
+import { Route as ProtectedTenantsRouteImport } from './routes/_protected.tenants'
 import { Route as ProtectedProfileRouteImport } from './routes/_protected.profile'
 import { Route as AuthResetPasswordTokenRouteImport } from './routes/auth.reset-password.$token'
 
@@ -47,6 +48,11 @@ const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => AuthRoute,
 } as any)
+const ProtectedTenantsRoute = ProtectedTenantsRouteImport.update({
+  id: '/tenants',
+  path: '/tenants',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const ProtectedProfileRoute = ProtectedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -61,6 +67,7 @@ const AuthResetPasswordTokenRoute = AuthResetPasswordTokenRouteImport.update({
 export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/profile': typeof ProtectedProfileRoute
+  '/tenants': typeof ProtectedTenantsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/profile': typeof ProtectedProfileRoute
+  '/tenants': typeof ProtectedTenantsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
@@ -81,6 +89,7 @@ export interface FileRoutesById {
   '/_protected': typeof ProtectedRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/_protected/profile': typeof ProtectedProfileRoute
+  '/_protected/tenants': typeof ProtectedTenantsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
@@ -92,6 +101,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/auth'
     | '/profile'
+    | '/tenants'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
@@ -101,6 +111,7 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/profile'
+    | '/tenants'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
@@ -111,6 +122,7 @@ export interface FileRouteTypes {
     | '/_protected'
     | '/auth'
     | '/_protected/profile'
+    | '/_protected/tenants'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
@@ -167,6 +179,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_protected/tenants': {
+      id: '/_protected/tenants'
+      path: '/tenants'
+      fullPath: '/tenants'
+      preLoaderRoute: typeof ProtectedTenantsRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/profile': {
       id: '/_protected/profile'
       path: '/profile'
@@ -186,11 +205,13 @@ declare module '@tanstack/react-router' {
 
 interface ProtectedRouteChildren {
   ProtectedProfileRoute: typeof ProtectedProfileRoute
+  ProtectedTenantsRoute: typeof ProtectedTenantsRoute
   ProtectedIndexRoute: typeof ProtectedIndexRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedProfileRoute: ProtectedProfileRoute,
+  ProtectedTenantsRoute: ProtectedTenantsRoute,
   ProtectedIndexRoute: ProtectedIndexRoute,
 }
 

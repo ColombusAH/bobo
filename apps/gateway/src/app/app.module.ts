@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule, JwtAuthGuard } from '@org/auth';
 import { AuthController } from './auth/auth.controller';
+import { TenantsController } from './tenants/tenants.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -15,7 +16,7 @@ import { PrismaService } from '../prisma/prisma.service';
     PrismaModule,
     AuthModule.forRoot(PrismaService),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, TenantsController],
   providers: [
     // Apply JWT authentication globally
     {

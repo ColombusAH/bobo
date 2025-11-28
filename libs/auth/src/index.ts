@@ -4,6 +4,7 @@ export * from './lib/auth.module';
 // Services
 export * from './lib/services/auth.service';
 export * from './lib/services/token.service';
+export * from './lib/services/tenant.service';
 
 // Guards
 export * from './lib/guards/jwt-auth.guard';
@@ -19,6 +20,8 @@ export * from './lib/decorators/current-user.decorator';
 
 // DTOs
 export * from './lib/dto/auth.dto';
+export * from './lib/dto/tenant.dto';
+export * from './lib/dto/tenant.dto';
 
 // Interfaces
 export * from './lib/interfaces/auth.interface';

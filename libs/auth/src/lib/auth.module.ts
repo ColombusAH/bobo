@@ -7,6 +7,7 @@ import { RedisModule } from '@nestjs-modules/ioredis';
 // Services
 import { AuthService, PRISMA_SERVICE } from './services/auth.service';
 import { TokenService } from './services/token.service';
+import { TenantService } from './services/tenant.service';
 
 // Strategies
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -58,6 +59,7 @@ export class AuthModule {
         // Services
         AuthService,
         TokenService,
+        TenantService,
         
         // Strategies
         JwtStrategy,
@@ -72,6 +74,7 @@ export class AuthModule {
       exports: [
         AuthService,
         TokenService,
+        TenantService,
         JwtAuthGuard,
         TenantGuard,
         RolesGuard,

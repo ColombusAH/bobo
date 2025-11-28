@@ -10,6 +10,7 @@ import {
   User,
 } from '../types/auth';
 import { api, tokenStorage } from '../api/client';
+import { useAuth } from '../features/auth/authState';
 
 /**
  * Hook for user registration
@@ -41,29 +42,28 @@ export const useRegister = () => {
 
 /**
  * Hook for user login
+ * @param redirectTo - Optional path to redirect to after login (defaults to '/')
  * @returns Mutation object with login function and state
  */
-export const useLogin = () => {
+export const useLogin = (redirectTo: string = '/') => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { login: authLogin } = useAuth();
 
   return useMutation({
-    mutationFn: async (data: LoginDto): Promise<LoginResponse> => {
-      const response = await api.post<LoginResponse>('/auth/login', data);
-      return response.data;
+    mutationFn: async (data: LoginDto): Promise<void> => {
+      // Use the auth context's login function to ensure state is properly updated
+      await authLogin(data);
     },
-    onSuccess: (data) => {
-      // Store tokens
-      console.log('Login success:', data);
-      tokenStorage.setAccessToken(data.tokens.accessToken);
-      tokenStorage.setRefreshToken(data.tokens.refreshToken);
-
+    onSuccess: () => {
       // Invalidate and refetch auth queries
       queryClient.invalidateQueries({ queryKey: ['auth'] });
-      queryClient.setQueryData(['auth', 'me'], data.user);
 
-      // Navigate to dashboard
-      navigate({ to: '/' });
+      // Use requestAnimationFrame to ensure auth state is updated in router context
+      // before navigation
+      requestAnimationFrame(() => {
+        navigate({ to: redirectTo });
+      });
     },
   });
 };
